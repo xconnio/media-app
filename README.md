@@ -10,7 +10,7 @@ It registers these apps with deskconnd, which lists them for the frontend
 Run it next to deskconnd, as the same user:
 
 ```
-go build -o media-app . && ./media-app
+make build && ./media-app
 ```
 
 Thumbnails for videos and PDFs need `ffmpeg` and `pdftocairo` (poppler-utils).

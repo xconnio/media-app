@@ -2,13 +2,10 @@ module github.com/xconnio/media-app
 
 go 1.26.0
 
-// deskconn/common isn't released with the shared thumbnail and media constants yet.
-replace github.com/xconnio/deskconn => ../deskconn
-
 require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/xconnio/deskconn v0.0.0
+	github.com/xconnio/deskconn v0.1.0-alpha.887da26
 	github.com/xconnio/xconn-go v0.1.1-0.20261007102313-d9dd5068c0ca
 	go.etcd.io/bbolt v1.4.3
 )

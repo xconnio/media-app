@@ -1,7 +1,3 @@
-// media-app serves deskconn's Pictures, Videos and Documents apps: it indexes the user's
-// standard folders and answers deskconnd's index queries over deskconnd's local socket
-// (deskconn.sock). It registers those apps with deskconnd, so they're listed for the
-// frontend while media-app is connected.
 package main
 
 import (
@@ -18,10 +14,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/xconnio/deskconn/common"
+	mediaapp "github.com/xconnio/media-app"
 	"github.com/xconnio/xconn-go"
 )
 
-// app is an app media-app serves, as registered with deskconnd.
 type app struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -40,14 +36,13 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	index, err := NewIndexService(cfgDirectory)
+	index, err := mediaapp.NewIndexService(cfgDirectory)
 	if err != nil {
 		log.Fatalf("media-app: failed to start indexing: %v", err)
 	}
 	defer index.Close()
 	index.Start(ctx)
 
-	// deskconnd may not be up yet, or may restart: keep reconnecting until stopped.
 	uri := "unix://" + filepath.Join(cfgDirectory, "deskconn.sock")
 	for ctx.Err() == nil {
 		if err := serve(ctx, uri, index); err != nil {
@@ -60,8 +55,7 @@ func main() {
 	}
 }
 
-// serve connects to deskconnd and serves it until ctx is done or the connection drops.
-func serve(ctx context.Context, uri string, index *IndexService) error {
+func serve(ctx context.Context, uri string, index *mediaapp.IndexService) error {
 	session, err := xconn.ConnectAnonymous(ctx, uri, common.LocalRealm)
 	if err != nil {
 		return fmt.Errorf("could not reach deskconnd: %w", err)
@@ -91,8 +85,7 @@ func serve(ctx context.Context, uri string, index *IndexService) error {
 	}
 }
 
-// handleQuery answers deskconnd's forwarded index query: its argument and result are JSON.
-func handleQuery(index *IndexService, inv *xconn.Invocation) *xconn.InvocationResult {
+func handleQuery(index *mediaapp.IndexService, inv *xconn.Invocation) *xconn.InvocationResult {
 	payload, err := inv.ArgBytes(0)
 	if err != nil {
 		return xconn.NewInvocationError(common.ErrInvalidArgument, err.Error())
