@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"slices"
 	"sync"
 	"syscall"
@@ -15,14 +14,14 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/xconnio/deskconn/common"
+	"github.com/xconnio/deskconn/appkit"
 	mediaapp "github.com/xconnio/media-app"
 	"github.com/xconnio/xconn-go"
 )
 
 const (
-	procedureKeyExchange = "io.xconn.deskconn.deskconnd.media.key.exchange"
-	procedureIndexQuery  = "io.xconn.deskconn.deskconnd.index.query"
+	procedureKeyExchange = "io.xconn.media.key.exchange"
+	procedureIndexQuery  = "io.xconn.media.index.query"
 )
 
 type app struct {
@@ -47,17 +46,17 @@ var apps = []app{
 const reconnectDelay = 2 * time.Second
 
 func main() {
-	cfgDirectory, err := common.CfgDirectory()
+	cfgDirectory, err := appkit.CfgDirectory()
 	if err != nil {
 		log.Fatal(err)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	m := &media{cfgDirectory: cfgDirectory, enc: common.NewAppEncryption()}
+	m := &media{cfgDirectory: cfgDirectory, enc: appkit.NewEncryption()}
 	defer m.setIndexing(ctx, false)
 
-	uri := "unix://" + filepath.Join(cfgDirectory, "deskconn.sock")
+	uri := appkit.SocketURI(cfgDirectory)
 	for ctx.Err() == nil {
 		if err := m.serve(ctx, uri); err != nil {
 			log.Printf("media-app: %v, retrying in %v", err, reconnectDelay)
@@ -71,7 +70,7 @@ func main() {
 
 type media struct {
 	cfgDirectory string
-	enc          *common.AppEncryption
+	enc          *appkit.Encryption
 
 	mu         sync.Mutex
 	session    *xconn.Session
@@ -82,7 +81,7 @@ type media struct {
 }
 
 func (m *media) serve(ctx context.Context, uri string) error {
-	session, err := xconn.ConnectAnonymous(ctx, uri, common.LocalRealm)
+	session, err := xconn.ConnectAnonymous(ctx, uri, appkit.LocalRealm)
 	if err != nil {
 		return fmt.Errorf("could not reach deskconnd: %w", err)
 	}
@@ -94,7 +93,7 @@ func (m *media) serve(ctx context.Context, uri string) error {
 	if err := m.enc.Register(session, procedureKeyExchange); err != nil {
 		return err
 	}
-	subResp := session.Subscribe(common.TopicCapabilitiesChanged, func(event *xconn.Event) {
+	subResp := session.Subscribe(appkit.TopicCapabilitiesChanged, func(event *xconn.Event) {
 		if len(event.Args()) > 0 {
 			m.applyCapabilities(ctx, event.Args()[0])
 		}
@@ -106,10 +105,10 @@ func (m *media) serve(ctx context.Context, uri string) error {
 	if err != nil {
 		return err
 	}
-	if resp := session.Call(common.ProcedureAppsRegister).Args(payload).Do(); resp.Err != nil {
+	if resp := session.Call(appkit.ProcedureAppsRegister).Args(payload).Do(); resp.Err != nil {
 		return fmt.Errorf("could not register apps: %w", resp.Err)
 	}
-	listResp := session.Call(common.ProcedureCapabilitiesList).Do()
+	listResp := session.Call(appkit.ProcedureCapabilitiesList).Do()
 	if listResp.Err != nil {
 		return listResp.Err
 	}
@@ -206,7 +205,7 @@ func (m *media) handleQuery(_ context.Context, req []byte) (any, error) {
 		Limit      int               `json:"limit"`
 	}
 	if err := json.Unmarshal(req, &args); err != nil {
-		return nil, &xconn.Error{URI: common.ErrInvalidArgument, Args: []any{err.Error()}}
+		return nil, &xconn.Error{URI: appkit.ErrInvalidArgument, Args: []any{err.Error()}}
 	}
 
 	m.mu.Lock()
@@ -217,7 +216,7 @@ func (m *media) handleQuery(_ context.Context, req []byte) (any, error) {
 	}
 	for _, category := range args.Categories {
 		if !slices.Contains(enabled, category) {
-			return nil, &xconn.Error{URI: common.ErrNotAuthorized, Args: []any{"category " + category + " is disabled"}}
+			return nil, &xconn.Error{URI: appkit.ErrNotAuthorized, Args: []any{"category " + category + " is disabled"}}
 		}
 	}
 	if len(args.Categories) == 0 {
