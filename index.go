@@ -15,7 +15,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/xconnio/deskconn/common"
+	"github.com/xconnio/deskconn/appkit"
 )
 
 // Index categories: Pictures serves images, Videos videos, Documents the rest.
@@ -197,7 +197,7 @@ func (s *IndexService) runIndexer(ctx context.Context) {
 
 	if ctx.Err() == nil {
 		_ = s.db.markIndexingComplete()
-		_ = s.db.setThumbnailDim(fmt.Sprint(common.ThumbnailMaxDim))
+		_ = s.db.setThumbnailDim(fmt.Sprint(appkit.ThumbnailMaxDim))
 		s.ready.Store(true)
 		log.Println("fileindex: indexing complete")
 		s.backfillPDFThumbnails(ctx)
@@ -210,7 +210,7 @@ func (s *IndexService) runIndexer(ctx context.Context) {
 //   - DB entries for files that no longer exist are pruned
 func (s *IndexService) runSync(ctx context.Context) {
 	log.Println("fileindex: syncing changes since last run")
-	regenThumbs := s.db.thumbnailDim() != fmt.Sprint(common.ThumbnailMaxDim)
+	regenThumbs := s.db.thumbnailDim() != fmt.Sprint(appkit.ThumbnailMaxDim)
 
 	batchCount := 0
 	s.walkFileEntries(ctx, s.indexRoots(), func(path string, entry IndexEntry) {
@@ -234,7 +234,7 @@ func (s *IndexService) runSync(ctx context.Context) {
 	if ctx.Err() == nil {
 		s.db.removeStaleEntries()
 		if regenThumbs {
-			_ = s.db.setThumbnailDim(fmt.Sprint(common.ThumbnailMaxDim))
+			_ = s.db.setThumbnailDim(fmt.Sprint(appkit.ThumbnailMaxDim))
 		}
 		log.Println("fileindex: sync complete")
 		s.backfillPDFThumbnails(ctx)
@@ -331,16 +331,16 @@ func (s *IndexService) handleWatchEvent(event fsnotify.Event) {
 	}
 
 	switch {
-	case category == CategoryImages && info.Size() <= common.MaxThumbnailSourceSize:
-		if thumb := common.ImageThumbnail(event.Name); thumb != "" {
+	case category == CategoryImages && info.Size() <= appkit.MaxThumbnailSourceSize:
+		if thumb := appkit.ImageThumbnail(event.Name); thumb != "" {
 			_ = s.db.addThumbnail(event.Name, thumb)
 		}
 	case category == CategoryVideos:
-		if thumb := common.VideoThumbnail(event.Name); thumb != "" {
+		if thumb := appkit.VideoThumbnail(event.Name); thumb != "" {
 			_ = s.db.addThumbnail(event.Name, thumb)
 		}
 	case category == CategoryPDFs:
-		if thumb := common.PDFThumbnail(event.Name); thumb != "" {
+		if thumb := appkit.PDFThumbnail(event.Name); thumb != "" {
 			_ = s.db.addThumbnail(event.Name, thumb)
 		}
 	}
@@ -419,18 +419,18 @@ func (s *IndexService) walkDirs(ctx context.Context, roots []string, fn func(pat
 // storeThumbnailSlow generates and stores a thumbnail then sleeps to limit CPU usage during bulk walks.
 func (s *IndexService) storeThumbnailSlow(path, category string, size int64) {
 	switch {
-	case category == CategoryImages && size <= common.MaxThumbnailSourceSize:
-		if thumb := common.ImageThumbnail(path); thumb != "" {
+	case category == CategoryImages && size <= appkit.MaxThumbnailSourceSize:
+		if thumb := appkit.ImageThumbnail(path); thumb != "" {
 			_ = s.db.addThumbnail(path, thumb)
 		}
 		time.Sleep(thumbIndexSleep)
 	case category == CategoryVideos:
-		if thumb := common.VideoThumbnail(path); thumb != "" {
+		if thumb := appkit.VideoThumbnail(path); thumb != "" {
 			_ = s.db.addThumbnail(path, thumb)
 		}
 		time.Sleep(thumbIndexSleep)
 	case category == CategoryPDFs:
-		if thumb := common.PDFThumbnail(path); thumb != "" {
+		if thumb := appkit.PDFThumbnail(path); thumb != "" {
 			_ = s.db.addThumbnail(path, thumb)
 		}
 		time.Sleep(thumbIndexSleep)

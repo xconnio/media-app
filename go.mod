@@ -5,8 +5,8 @@ go 1.26.0
 require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/xconnio/deskconn v0.1.0-alpha.ffce955.0.20261014090934-f20277c17bf7
-	github.com/xconnio/xconn-go v0.1.1-0.20261014081049-1e92c06558da
+	github.com/xconnio/deskconn v0.1.0-alpha.ffce955.0.20261021132101-94de398e2b65
+	github.com/xconnio/xconn-go v0.1.1-0.20261021120311-3b3492dec74d
 	go.etcd.io/bbolt v1.4.3
 )
 
