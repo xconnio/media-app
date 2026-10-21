@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	procedureKeyExchange = "io.xconn.deskconn.deskconnd.media.key.exchange"
-	procedureIndexQuery  = "io.xconn.deskconn.deskconnd.index.query"
+	procedureKeyExchange = "io.xconn.media.key.exchange"
+	procedureIndexQuery  = "io.xconn.media.index.query"
 )
 
 type app struct {
